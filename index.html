@@ -56,6 +56,12 @@
     </p>
     <button id="launch" disabled>Loading…</button>
     <div id="status" class="status info" style="display: none"></div>
+    <hr style="margin-top: 32px; opacity: 0.3" />
+    <p style="font-size: 12px; color: #888">
+      Diagnostic-only: simulate the WA_EMBEDDED_SIGNUP/FINISH event so we can
+      verify the display path independently of whether Meta is sending it.
+    </p>
+    <button id="simulate" style="background: #777">Simulate FINISH event</button>
 
     <script>
       const META_APP_ID = "1650350479345512";
@@ -138,6 +144,20 @@
         js.src = "https://connect.facebook.net/en_US/sdk.js";
         fjs.parentNode.insertBefore(js, fjs);
       })(document, "script", "facebook-jssdk");
+
+      // Diagnostic: simulate a FINISH event so we can verify the display path
+      // separately from whether Meta actually sends it.
+      document.getElementById("simulate").addEventListener("click", function () {
+        const fakeWabaId = "1234567890" + Math.floor(Math.random() * 10000);
+        const fakePhoneId = "9876543210" + Math.floor(Math.random() * 10000);
+        setStatus(
+          "success",
+          "Connected. WABA ID: <code>" + fakeWabaId + "</code>, " +
+          "Phone Number ID: <code>" + fakePhoneId + "</code>.<br/><br/>" +
+          "<strong>You can close this tab and return to Canva.</strong>" +
+          "<br/><br/><em>(This was a simulated event for testing the display only.)</em>"
+        );
+      });
 
       launchBtn.addEventListener("click", function () {
         console.log("[probe] click — about to call FB.login");
