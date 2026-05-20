@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Connect WhatsApp Business to Canva</title>
+    <style>
+      :root {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      body {
+        max-width: 480px;
+        margin: 48px auto;
+        padding: 0 16px;
+        color: #1a1a1a;
+        background: #fafafa;
+      }
+      h1 { font-size: 20px; margin-bottom: 8px; }
+      p { line-height: 1.5; color: #555; }
+      button {
+        background: #1877f2;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        font-size: 15px;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        width: 100%;
+      }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .status {
+        margin-top: 24px;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .status.info { background: #e7f3ff; color: #1a3a5c; }
+      .status.success { background: #e6f5ec; color: #1a5c3a; }
+      .status.error { background: #fde8e8; color: #8b1f1f; }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: rgba(0,0,0,0.05);
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Connect WhatsApp Business to Canva</h1>
+    <p>
+      Click below to launch the Meta sign-up flow. After it completes, return
+      to your Canva tab to finish connecting.
+    </p>
+    <button id="launch" disabled>Loading…</button>
+    <div id="status" class="status info" style="display: none"></div>
+
+    <script>
+      const META_APP_ID = "1650350479345512";
+      const ES_CONFIG_ID = "1031094522788173";
+      // TODO: pick a Graph API version that matches what the rest of the integration uses
+      const GRAPH_VERSION = "v25.0";
+
+      const launchBtn = document.getElementById("launch");
+      const statusEl = document.getElementById("status");
+
+      function setStatus(kind, html) {
+        statusEl.className = "status " + kind;
+        statusEl.style.display = "block";
+        statusEl.innerHTML = html;
+      }
+
+      // Listen for the WA Embedded Signup postMessage.
+      // FB sends these from www.facebook.com and web.facebook.com to the window that called FB.login.
+      window.addEventListener("message", (event) => {
+        if (
+          event.origin !== "https://www.facebook.com" &&
+          event.origin !== "https://web.facebook.com"
+        ) {
+          return;
+        }
+        let data;
+        try {
+          data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        } catch {
+          return;
+        }
+        if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
+
+        if (data.event === "FINISH") {
+          const { waba_id, phone_number_id } = data.data || {};
+          setStatus(
+            "success",
+            "Connected. WABA ID: <code>" + waba_id + "</code>, " +
+            "Phone Number ID: <code>" + phone_number_id + "</code>.<br/><br/>" +
+            "<strong>You can close this tab and return to Canva.</strong>"
+          );
+        } else if (data.event === "CANCEL") {
+          setStatus(
+            "info",
+            "Sign-up cancelled at step: <code>" +
+              (data.data?.current_step || "unknown") +
+              "</code>. You can try again."
+          );
+        } else if (data.event === "ERROR") {
+          setStatus(
+            "error",
+            "Meta reported an error: <code>" +
+              (data.data?.error_message || JSON.stringify(data.data)) +
+              "</code>"
+          );
+        }
+      });
+
+      // Load FB SDK and wire the button.
+      window.fbAsyncInit = function () {
+        FB.init({
+          appId: META_APP_ID,
+          cookie: true,
+          xfbml: true,
+          version: GRAPH_VERSION,
+        });
+        launchBtn.disabled = false;
+        launchBtn.textContent = "Connect WhatsApp Business";
+      };
+
+      (function (d, s, id) {
+        const fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        const js = d.createElement(s);
+        js.id = id;
+        js.src = "https://connect.facebook.net/en_US/sdk.js";
+        fjs.parentNode.insertBefore(js, fjs);
+      })(document, "script", "facebook-jssdk");
+
+      launchBtn.addEventListener("click", function () {
+        setStatus("info", "Launching Meta sign-up…");
+        FB.login(
+          function (response) {
+            if (response.authResponse && response.authResponse.code) {
+              // The code is intentionally NOT exchanged here. Our Canva app obtains
+              // its own access token via Canva's OAuth wrapper after the user
+              // returns. ES has done its job by establishing the user↔app↔WABA
+              // relationship; the API discovery picks up the WABA from there.
+              return;
+            }
+            if (!response.authResponse) {
+              setStatus("info", "Sign-up dialog was closed before completion.");
+            }
+          },
+          {
+            config_id: ES_CONFIG_ID,
+            response_type: "code",
+            override_default_response_type: true,
+            extras: {
+              setup: {},
+              sessionInfoVersion: "3",
+            },
+          }
+        );
+      });
+    </script>
+  </body>
+</html>
