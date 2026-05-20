@@ -72,9 +72,12 @@
         statusEl.innerHTML = html;
       }
 
-      // Listen for the WA Embedded Signup postMessage.
-      // FB sends these from www.facebook.com and web.facebook.com to the window that called FB.login.
+      // DIAGNOSTIC: every postMessage received, regardless of origin.
+      // We're trying to find out whether the WA_EMBEDDED_SIGNUP event reaches us
+      // at all, so we log everything here and only run the success/cancel/error
+      // branches when the payload matches.
       window.addEventListener("message", (event) => {
+        console.log("[probe] postMessage from", event.origin, "data:", event.data);
         if (
           event.origin !== "https://www.facebook.com" &&
           event.origin !== "https://web.facebook.com"
@@ -87,6 +90,7 @@
         } catch {
           return;
         }
+        console.log("[probe] FB postMessage parsed:", data);
         if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
 
         if (data.event === "FINISH") {
@@ -136,19 +140,17 @@
       })(document, "script", "facebook-jssdk");
 
       launchBtn.addEventListener("click", function () {
+        console.log("[probe] click — about to call FB.login");
         setStatus("info", "Launching Meta sign-up…");
         FB.login(
           function (response) {
-            if (response.authResponse && response.authResponse.code) {
-              // The code is intentionally NOT exchanged here. Our Canva app obtains
-              // its own access token via Canva's OAuth wrapper after the user
-              // returns. ES has done its job by establishing the user↔app↔WABA
-              // relationship; the API discovery picks up the WABA from there.
-              return;
-            }
-            if (!response.authResponse) {
-              setStatus("info", "Sign-up dialog was closed before completion.");
-            }
+            console.log("[probe] FB.login callback:", response);
+            setStatus(
+              "info",
+              "FB.login callback fired.<br/>response: <code>" +
+                JSON.stringify(response) +
+                "</code>"
+            );
           },
           {
             config_id: ES_CONFIG_ID,
